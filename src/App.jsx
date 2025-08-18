@@ -1,10 +1,11 @@
-import React from 'react'
-import { Table, Typography, Space, Tag } from 'antd'
+import React, { useState, useMemo } from 'react'
+import { Table, Typography, Space, Tag, Select } from 'antd'
 import 'antd/dist/reset.css'
 import './App.css'
 import raceResults from '../race-results.json'
 
 const { Title } = Typography
+const { Option } = Select
 
 // Race results table columns
 const columns = [
@@ -70,7 +71,7 @@ const columns = [
 ]
 
 // Transform race results data for the table
-const data = raceResults.Results[0].Racers.map((racer, index) => ({
+const allRacers = raceResults.Results[0].Racers.map((racer, index) => ({
   key: index.toString(),
   place: racer.Place,
   bib: racer.Bib,
@@ -83,6 +84,25 @@ const data = raceResults.Results[0].Racers.map((racer, index) => ({
 }))
 
 function App() {
+  const [selectedCategory, setSelectedCategory] = useState('Overall')
+
+  // Get unique categories for the dropdown
+  const categories = useMemo(() => {
+    const uniqueCategories = [...new Set(allRacers.map(racer => racer.category))]
+    return ['Overall', ...uniqueCategories.sort()]
+  }, [])
+
+  // Filter data based on selected category
+  const filteredData = useMemo(() => {
+    if (selectedCategory === 'Overall') {
+      return allRacers
+    }
+    return allRacers.filter(racer => racer.category === selectedCategory)
+  }, [selectedCategory])
+
+  const handleCategoryChange = (value) => {
+    setSelectedCategory(value)
+  }
   return (
     <div style={{ padding: '24px' }}>
       <Space direction="vertical" size="large" style={{ display: 'flex' }}>
@@ -95,9 +115,28 @@ function App() {
             {raceResults.RaceInfo.Sport} • {raceResults.RaceInfo.CompletionState}
           </p>
         </div>
+        
+        <div style={{ marginBottom: '16px' }}>
+          <Space>
+            <span style={{ fontSize: '16px', fontWeight: '500' }}>Filter by Category:</span>
+            <Select
+              value={selectedCategory}
+              onChange={handleCategoryChange}
+              style={{ width: 200 }}
+              placeholder="Select category"
+            >
+              {categories.map(category => (
+                <Option key={category} value={category}>
+                  {category} {category === 'Overall' ? `(${allRacers.length})` : `(${allRacers.filter(r => r.category === category).length})`}
+                </Option>
+              ))}
+            </Select>
+          </Space>
+        </div>
+
         <Table 
           columns={columns} 
-          dataSource={data}
+          dataSource={filteredData}
           pagination={{ 
             pageSize: 10,
             showSizeChanger: true,
