@@ -35,6 +35,17 @@ const columns = [
     width: 180,
   },
   {
+    title: 'Distance',
+    dataIndex: 'distance',
+    key: 'distance',
+    width: 120,
+    render: (distance) => (
+      <Tag color="green">
+        {distance}
+      </Tag>
+    ),
+  },
+  {
     title: 'Category',
     dataIndex: 'category',
     key: 'category',
@@ -70,21 +81,25 @@ const columns = [
   },
 ]
 
-// Transform race results data for the table
-const allRacers = raceResults.Results[0].Racers.map((racer, index) => ({
-  key: index.toString(),
-  place: racer.Place,
-  bib: racer.Bib,
-  name: racer.Name,
-  teamName: racer.TeamName,
-  category: racer.Category,
-  time: racer.Time,
-  difference: racer.Difference,
-  percentBack: racer.PercentBack,
-}))
+// Transform race results data for the table - combine all result groups
+const allRacers = raceResults.Results.flatMap(resultGroup => 
+  resultGroup.Racers.map((racer, index) => ({
+    key: `${resultGroup.Grouping.Distance}-${index}`,
+    place: racer.Place,
+    bib: racer.Bib,
+    name: racer.Name,
+    teamName: racer.TeamName,
+    distance: racer.Distance,
+    category: racer.Category,
+    time: racer.Time,
+    difference: racer.Difference,
+    percentBack: racer.PercentBack,
+  }))
+)
 
 function App() {
   const [selectedCategory, setSelectedCategory] = useState('Overall')
+  const [selectedDistance, setSelectedDistance] = useState('All Distances')
 
   // Get unique categories for the dropdown
   const categories = useMemo(() => {
@@ -92,16 +107,35 @@ function App() {
     return ['Overall', ...uniqueCategories.sort()]
   }, [])
 
-  // Filter data based on selected category
+  // Get unique distances for the dropdown
+  const distances = useMemo(() => {
+    const uniqueDistances = [...new Set(allRacers.map(racer => racer.distance))]
+    return ['All Distances', ...uniqueDistances.sort()]
+  }, [])
+
+  // Filter data based on selected category and distance
   const filteredData = useMemo(() => {
-    if (selectedCategory === 'Overall') {
-      return allRacers
+    let filtered = allRacers
+
+    // Filter by category
+    if (selectedCategory !== 'Overall') {
+      filtered = filtered.filter(racer => racer.category === selectedCategory)
     }
-    return allRacers.filter(racer => racer.category === selectedCategory)
-  }, [selectedCategory])
+
+    // Filter by distance
+    if (selectedDistance !== 'All Distances') {
+      filtered = filtered.filter(racer => racer.distance === selectedDistance)
+    }
+
+    return filtered
+  }, [selectedCategory, selectedDistance])
 
   const handleCategoryChange = (value) => {
     setSelectedCategory(value)
+  }
+
+  const handleDistanceChange = (value) => {
+    setSelectedDistance(value)
   }
   return (
     <div style={{ padding: '24px' }}>
@@ -117,20 +151,38 @@ function App() {
         </div>
         
         <div style={{ marginBottom: '16px' }}>
-          <Space>
-            <span style={{ fontSize: '16px', fontWeight: '500' }}>Filter by Category:</span>
-            <Select
-              value={selectedCategory}
-              onChange={handleCategoryChange}
-              style={{ width: 200 }}
-              placeholder="Select category"
-            >
-              {categories.map(category => (
-                <Option key={category} value={category}>
-                  {category} {category === 'Overall' ? `(${allRacers.length})` : `(${allRacers.filter(r => r.category === category).length})`}
-                </Option>
-              ))}
-            </Select>
+          <Space size="large">
+            <Space>
+              <span style={{ fontSize: '16px', fontWeight: '500' }}>Filter by Category:</span>
+              <Select
+                value={selectedCategory}
+                onChange={handleCategoryChange}
+                style={{ width: 200 }}
+                placeholder="Select category"
+              >
+                {categories.map(category => (
+                  <Option key={category} value={category}>
+                    {category} {category === 'Overall' ? `(${allRacers.length})` : `(${allRacers.filter(r => r.category === category).length})`}
+                  </Option>
+                ))}
+              </Select>
+            </Space>
+            
+            <Space>
+              <span style={{ fontSize: '16px', fontWeight: '500' }}>Filter by Distance:</span>
+              <Select
+                value={selectedDistance}
+                onChange={handleDistanceChange}
+                style={{ width: 180 }}
+                placeholder="Select distance"
+              >
+                {distances.map(distance => (
+                  <Option key={distance} value={distance}>
+                    {distance} {distance === 'All Distances' ? `(${allRacers.length})` : `(${allRacers.filter(r => r.distance === distance).length})`}
+                  </Option>
+                ))}
+              </Select>
+            </Space>
           </Space>
         </div>
 
