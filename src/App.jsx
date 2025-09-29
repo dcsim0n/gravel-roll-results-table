@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react'
-import { Table, Typography, Space, Tag, Select } from 'antd'
+import { ConfigProvider, Table, Typography, Space, Tag, Select, theme } from 'antd'
 import 'antd/dist/reset.css'
 import './App.css'
 import raceResults from '../race-results.json'
@@ -11,7 +11,7 @@ const { Option } = Select
 const columns = [
   {
     title: 'Place',
-    dataIndex: 'place',
+    dataIndex: 'Place',
     key: 'place',
     width: 80,
     sorter: (a, b) => parseInt(a.place) - parseInt(b.place),
@@ -24,8 +24,8 @@ const columns = [
   },
   {
     title: 'Name',
-    dataIndex: 'name',
-    key: 'name',
+    dataIndex: 'Name',
+    key: 'Name',
     width: 200,
   },
   {
@@ -36,8 +36,8 @@ const columns = [
   },
   {
     title: 'Distance',
-    dataIndex: 'distance',
-    key: 'distance',
+    dataIndex: 'Distance',
+    key: 'Distance',
     width: 120,
     render: (distance) => (
       <Tag color="green">
@@ -47,8 +47,8 @@ const columns = [
   },
   {
     title: 'Category',
-    dataIndex: 'category',
-    key: 'category',
+    dataIndex: 'Category',
+    key: 'Category',
     width: 120,
     render: (category) => (
       <Tag color={category.includes('Female') ? 'pink' : 'blue'}>
@@ -58,13 +58,13 @@ const columns = [
   },
   {
     title: 'Time',
-    dataIndex: 'time',
+    dataIndex: 'Time',
     key: 'time',
     width: 100,
   },
   {
     title: 'Difference',
-    dataIndex: 'difference',
+    dataIndex: 'Difference',
     key: 'difference',
     width: 100,
     render: (diff) => (
@@ -82,49 +82,51 @@ const columns = [
 ]
 
 // Transform race results data for the table - combine all result groups
-const allRacers = raceResults.Results.flatMap(resultGroup => 
-  resultGroup.Racers.map((racer, index) => ({
-    key: `${resultGroup.Grouping.Distance}-${index}`,
-    place: racer.Place,
-    bib: racer.Bib,
-    name: racer.Name,
-    teamName: racer.TeamName,
-    distance: racer.Distance,
-    category: racer.Category,
-    time: racer.Time,
-    difference: racer.Difference,
-    percentBack: racer.PercentBack,
-  }))
-)
+const allRacers = raceResults.Results
+// const allRacers = raceResults.Results.flatMap(resultGroup => 
+//   resultGroup.Racers.map((racer, index) => ({
+//     key: `${resultGroup.Grouping.Distance}-${index}`,
+//     place: racer.Place,
+//     bib: racer.Bib,
+//     name: racer.Name,
+//     teamName: racer.TeamName,
+//     distance: racer.Distance,
+//     category: racer.Category,
+//     time: racer.Time,
+//     difference: racer.Difference,
+//     percentBack: racer.PercentBack,
+//   }))
+// )
 
 function App() {
-  const [selectedCategory, setSelectedCategory] = useState('Overall')
-  const [selectedDistance, setSelectedDistance] = useState('All Distances')
 
   // Get unique categories for the dropdown
   const categories = useMemo(() => {
-    const uniqueCategories = [...new Set(allRacers.map(racer => racer.category))]
+    const uniqueCategories = [...new Set(allRacers.map(resultItem => resultItem.Grouping.Category))]
     return ['Overall', ...uniqueCategories.sort()]
   }, [])
 
   // Get unique distances for the dropdown
   const distances = useMemo(() => {
-    const uniqueDistances = [...new Set(allRacers.map(racer => racer.distance))]
-    return ['All Distances', ...uniqueDistances.sort()]
+    const uniqueDistances = [...new Set(allRacers.map(resultItem => resultItem.Grouping.Distance))]
+    return [...uniqueDistances.sort()]
   }, [])
+
+  const [selectedCategory, setSelectedCategory] = useState('Overall')
+  const [selectedDistance, setSelectedDistance] = useState(distances[0])
 
   // Filter data based on selected category and distance
   const filteredData = useMemo(() => {
     let filtered = allRacers
-
     // Filter by category
-    if (selectedCategory !== 'Overall') {
-      filtered = filtered.filter(racer => racer.category === selectedCategory)
+    if (selectedCategory !== "Overall"){
+      filtered = filtered.filter(resultItem => (resultItem.Grouping.Category === selectedCategory) && (resultItem.Grouping.Distance === selectedDistance))
+    } else {
+      filtered = filtered.filter(resultItem => (resultItem.Grouping.Overall === true ) && (resultItem.Grouping.Distance === selectedDistance))
     }
 
-    // Filter by distance
-    if (selectedDistance !== 'All Distances') {
-      filtered = filtered.filter(racer => racer.distance === selectedDistance)
+    if (filtered.length > 0) {
+      filtered = filtered[0]
     }
 
     return filtered
@@ -137,69 +139,77 @@ function App() {
   const handleDistanceChange = (value) => {
     setSelectedDistance(value)
   }
+  console.log(distances)
+  console.log(categories)
+  console.log(filteredData)
   return (
     <div style={{ padding: '24px' }}>
-      <Space direction="vertical" size="large" style={{ display: 'flex' }}>
-        <div>
-          <Title level={2}>{raceResults.RaceInfo.Name}</Title>
-          <p style={{ fontSize: '16px', color: '#666' }}>
-            {raceResults.RaceInfo.Date} • {raceResults.RaceInfo.City}, {raceResults.RaceInfo.StateOrProvince}
-          </p>
-          <p style={{ fontSize: '14px', color: '#888' }}>
-            {raceResults.RaceInfo.Sport} • {raceResults.RaceInfo.CompletionState}
-          </p>
-        </div>
-        
-        <div style={{ marginBottom: '16px' }}>
-          <Space size="large">
-            <Space>
-              <span style={{ fontSize: '16px', fontWeight: '500' }}>Filter by Category:</span>
-              <Select
-                value={selectedCategory}
-                onChange={handleCategoryChange}
-                style={{ width: 200 }}
-                placeholder="Select category"
-              >
-                {categories.map(category => (
-                  <Option key={category} value={category}>
-                    {category} {category === 'Overall' ? `(${allRacers.length})` : `(${allRacers.filter(r => r.category === category).length})`}
-                  </Option>
-                ))}
-              </Select>
+      <ConfigProvider
+      theme={{
+        algorithm: theme.darkAlgorithm,
+      }}>
+        <Space direction="vertical" size="large" style={{ display: 'flex' }}>
+          <div>
+            <Title level={2}>{raceResults.RaceInfo.Name}</Title>
+            <p style={{ fontSize: '16px', color: '#666' }}>
+              {raceResults.RaceInfo.Date} • {raceResults.RaceInfo.City}, {raceResults.RaceInfo.StateOrProvince}
+            </p>
+            <p style={{ fontSize: '14px', color: '#888' }}>
+              {raceResults.RaceInfo.Sport} • {raceResults.RaceInfo.CompletionState}
+            </p>
+          </div>
+          
+          <div style={{ marginBottom: '16px' }}>
+            <Space size="large">
+              <Space>
+                <span style={{ fontSize: '16px', fontWeight: '500' }}>Filter by Category:</span>
+                <Select
+                  value={selectedCategory}
+                  onChange={handleCategoryChange}
+                  style={{ width: 200 }}
+                  placeholder="Select category"
+                >
+                  {categories.map(category => (
+                    <Option key={category} value={category}>
+                      {category} {category === 'Overall' ? `(${allRacers.length})` : `(${allRacers.filter(r => r.category === category).length})`}
+                    </Option>
+                  ))}
+                </Select>
+              </Space>
+              
+              <Space>
+                <span style={{ fontSize: '16px', fontWeight: '500' }}>Filter by Distance:</span>
+                <Select
+                  value={selectedDistance}
+                  onChange={handleDistanceChange}
+                  style={{ width: 180 }}
+                  placeholder="Select distance"
+                >
+                  {distances.map(distance => (
+                    <Option key={distance} value={distance}>
+                      {distance} {distance === 'All Distances' ? `(${allRacers.length})` : `(${allRacers.filter(r => r.distance === distance).length})`}
+                    </Option>
+                  ))}
+                </Select>
+              </Space>
             </Space>
-            
-            <Space>
-              <span style={{ fontSize: '16px', fontWeight: '500' }}>Filter by Distance:</span>
-              <Select
-                value={selectedDistance}
-                onChange={handleDistanceChange}
-                style={{ width: 180 }}
-                placeholder="Select distance"
-              >
-                {distances.map(distance => (
-                  <Option key={distance} value={distance}>
-                    {distance} {distance === 'All Distances' ? `(${allRacers.length})` : `(${allRacers.filter(r => r.distance === distance).length})`}
-                  </Option>
-                ))}
-              </Select>
-            </Space>
-          </Space>
-        </div>
+          </div>
 
-        <Table 
-          columns={columns} 
-          dataSource={filteredData}
-          pagination={{ 
-            pageSize: 10,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} racers`,
-          }}
-          bordered
-          scroll={{ x: 1000 }}
-          size="small"
-        />
-      </Space>
+          <Table 
+            columns={columns} 
+            dataSource={filteredData.Racers}
+            pagination={{ 
+              pageSize: 10,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} racers`,
+            }}
+            bordered
+            scroll={{ x: 1000 }}
+            size="small"
+          />
+        </Space>
+    </ConfigProvider>
     </div>
   )
 }
