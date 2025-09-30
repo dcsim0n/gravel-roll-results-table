@@ -4,6 +4,7 @@ import 'antd/dist/reset.css'
 import './App.css'
 import raceResults from '../race-results.json'
 
+
 const { Title } = Typography
 const { Option } = Select
 
@@ -17,22 +18,10 @@ const columns = [
     sorter: (a, b) => parseInt(a.place) - parseInt(b.place),
   },
   {
-    title: 'Bib',
-    dataIndex: 'bib',
-    key: 'bib',
-    width: 80,
-  },
-  {
     title: 'Name',
     dataIndex: 'Name',
     key: 'Name',
     width: 200,
-  },
-  {
-    title: 'Team/City',
-    dataIndex: 'teamName',
-    key: 'teamName',
-    width: 180,
   },
   {
     title: 'Distance',
@@ -75,12 +64,35 @@ const columns = [
   },
   {
     title: '% Back',
-    dataIndex: 'percentBack',
+    dataIndex: 'PercentBack',
     key: 'percentBack',
     width: 80,
-  },
+  }, 
+  ...getUniqueLapNames(raceResults)
 ]
 
+function getUniqueLapNames(apiResponse) {
+  const lapSet = new Set(); // LapNumber -> LapName
+  
+  apiResponse.Results.forEach(result => {
+    result.Racers.forEach(racer => {
+      racer.LapTimes?.forEach(lap => {
+          racer[lap.LapName] = lap.LapTime
+          lapSet.add(lap.LapName);
+        });
+    });
+  });
+  
+  // Sort by lap number and return just the names
+  return Array.from(lapSet.entries())
+    .sort()
+    .map(([_, name]) => ({
+      title: name,
+      dataIndex: name,
+      key: name,
+      width: 100,
+    }));
+}
 // Transform race results data for the table - combine all result groups
 const allRacers = raceResults.Results
 // const allRacers = raceResults.Results.flatMap(resultGroup => 
@@ -161,6 +173,21 @@ function App() {
           
           <div style={{ marginBottom: '16px' }}>
             <Space size="large">
+             <Space>
+                <span style={{ fontSize: '16px', fontWeight: '500' }}>Filter by Distance:</span>
+                <Select
+                  value={selectedDistance}
+                  onChange={handleDistanceChange}
+                  style={{ width: 180 }}
+                  placeholder="Select distance"
+                >
+                  {distances.map(distance => (
+                    <Option key={distance} value={distance}>
+                      {distance} 
+                    </Option>
+                  ))}
+                </Select>
+              </Space>
               <Space>
                 <span style={{ fontSize: '16px', fontWeight: '500' }}>Filter by Category:</span>
                 <Select
@@ -171,27 +198,13 @@ function App() {
                 >
                   {categories.map(category => (
                     <Option key={category} value={category}>
-                      {category} {category === 'Overall' ? `(${allRacers.length})` : `(${allRacers.filter(r => r.category === category).length})`}
+                      {category}
                     </Option>
                   ))}
                 </Select>
               </Space>
               
-              <Space>
-                <span style={{ fontSize: '16px', fontWeight: '500' }}>Filter by Distance:</span>
-                <Select
-                  value={selectedDistance}
-                  onChange={handleDistanceChange}
-                  style={{ width: 180 }}
-                  placeholder="Select distance"
-                >
-                  {distances.map(distance => (
-                    <Option key={distance} value={distance}>
-                      {distance} {distance === 'All Distances' ? `(${allRacers.length})` : `(${allRacers.filter(r => r.distance === distance).length})`}
-                    </Option>
-                  ))}
-                </Select>
-              </Space>
+ 
             </Space>
           </div>
 
