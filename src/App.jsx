@@ -1,71 +1,64 @@
 import React, { useState, useMemo } from 'react'
-import { ConfigProvider, Table, Typography, Space, Tag, Select, theme } from 'antd'
-import 'antd/dist/reset.css'
+import { MantineProvider, Table, Title, Group, Badge, Select, Text, Container, Box, Space } from '@mantine/core'
+import '@mantine/core/styles.css'
 import './App.css'
 import raceResults from '../race-results.json'
 
 
-const { Title } = Typography
-const { Option } = Select
+// Mantine Select doesn't use Option components
 
 // Race results table columns
 const columns = [
   {
+    accessor: 'Place',
     title: 'Place',
-    dataIndex: 'Place',
-    key: 'place',
     width: 80,
-    sorter: (a, b) => parseInt(a.place) - parseInt(b.place),
+    sortable: true,
+    // Mantine will handle sorting automatically
   },
   {
+    accessor: 'Name',
     title: 'Name',
-    dataIndex: 'Name',
-    key: 'Name',
     width: 200,
   },
   {
+    accessor: 'Distance',
     title: 'Distance',
-    dataIndex: 'Distance',
-    key: 'Distance',
     width: 120,
     render: (distance) => (
-      <Tag color="green">
+      <Badge color="green" variant="filled">
         {distance}
-      </Tag>
+      </Badge>
     ),
   },
   {
+    accessor: 'Category',
     title: 'Category',
-    dataIndex: 'Category',
-    key: 'Category',
     width: 120,
     render: (category) => (
-      <Tag color={category.includes('Female') ? 'pink' : 'blue'}>
+      <Badge color={category.includes('Female') ? 'pink' : 'blue'} variant="filled">
         {category}
-      </Tag>
+      </Badge>
     ),
   },
   {
+    accessor: 'Time',
     title: 'Time',
-    dataIndex: 'Time',
-    key: 'time',
     width: 100,
   },
   {
+    accessor: 'Difference',
     title: 'Difference',
-    dataIndex: 'Difference',
-    key: 'difference',
     width: 100,
     render: (diff) => (
-      <span style={{ color: diff === '-' ? '#52c41a' : '#fa541c' }}>
+      <Text c={diff === '-' ? 'green' : 'red'}>
         {diff}
-      </span>
+      </Text>
     ),
   },
   {
+    accessor: 'PercentBack',
     title: '% Back',
-    dataIndex: 'PercentBack',
-    key: 'percentBack',
     width: 80,
   }, 
   ...getUniqueLapNames(raceResults)
@@ -87,9 +80,8 @@ function getUniqueLapNames(apiResponse) {
   return Array.from(lapSet.entries())
     .sort()
     .map(([_, name]) => ({
+      accessor: name,
       title: name,
-      dataIndex: name,
-      key: name,
       width: 100,
     }));
 }
@@ -115,7 +107,7 @@ function App() {
   // Get unique categories for the dropdown
   const categories = useMemo(() => {
     const uniqueCategories = [...new Set(allRacers.map(resultItem => resultItem.Grouping.Category))]
-    return ['Overall', ...uniqueCategories.sort()]
+    return ['Overall', ...uniqueCategories.filter(Boolean).sort()]
   }, [])
 
   // Get unique distances for the dropdown
@@ -155,75 +147,60 @@ function App() {
   console.log(categories)
   console.log(filteredData)
   return (
-    <div style={{ padding: '24px' }}>
-      <ConfigProvider
-      theme={{
-        algorithm: theme.darkAlgorithm,
-      }}>
-        <Space direction="vertical" size="large" style={{ display: 'flex' }}>
-          <div>
-            <Title level={2}>{raceResults.RaceInfo.Name}</Title>
-            <p style={{ fontSize: '16px', color: '#666' }}>
-              {raceResults.RaceInfo.Date} • {raceResults.RaceInfo.City}, {raceResults.RaceInfo.StateOrProvince}
-            </p>
-            <p style={{ fontSize: '14px', color: '#888' }}>
-              {raceResults.RaceInfo.Sport} • {raceResults.RaceInfo.CompletionState}
-            </p>
-          </div>
-          
-          <div style={{ marginBottom: '16px' }}>
-            <Space size="large">
-             <Space>
-                <span style={{ fontSize: '16px', fontWeight: '500' }}>Filter by Distance:</span>
-                <Select
-                  value={selectedDistance}
-                  onChange={handleDistanceChange}
-                  style={{ width: 180 }}
-                  placeholder="Select distance"
-                >
-                  {distances.map(distance => (
-                    <Option key={distance} value={distance}>
-                      {distance} 
-                    </Option>
-                  ))}
-                </Select>
-              </Space>
-              <Space>
-                <span style={{ fontSize: '16px', fontWeight: '500' }}>Filter by Category:</span>
-                <Select
-                  value={selectedCategory}
-                  onChange={handleCategoryChange}
-                  style={{ width: 200 }}
-                  placeholder="Select category"
-                >
-                  {categories.map(category => (
-                    <Option key={category} value={category}>
-                      {category}
-                    </Option>
-                  ))}
-                </Select>
-              </Space>
-              
- 
-            </Space>
-          </div>
+    <MantineProvider >
+      <Container size="xl" pt="md">
+        <Space h="md" />
+        <Title order={2}>{raceResults.RaceInfo.Name}</Title>
+        <Text size="md" c="dimmed">
+          {raceResults.RaceInfo.Date} • {raceResults.RaceInfo.City}, {raceResults.RaceInfo.StateOrProvince}
+        </Text>
+        <Text size="sm" c="dimmed" mb="lg">
+          {raceResults.RaceInfo.Sport} • {raceResults.RaceInfo.CompletionState}
+        </Text>
+        
+        <Box mb="md">
+          <Group>
+            <Group>
+              <Text fw={500}>Filter by Distance:</Text>
+              <Select
+                value={selectedDistance}
+                onChange={handleDistanceChange}
+                data={distances.map(distance => ({ value: distance, label: distance }))}
+                w={180}
+                placeholder="Select distance"
+              />
+            </Group>
+            <Group>
+              <Text fw={500}>Filter by Category:</Text>
+              <Select
+                value={selectedCategory}
+                onChange={handleCategoryChange}
+                data={categories.map(category => ({ value: category, label: category }))}
+                w={200}
+                placeholder="Select category"
+              />
+            </Group>
+          </Group>
+        </Box>
 
-          <Table 
-            columns={columns} 
-            dataSource={filteredData.Racers}
-            pagination={{ 
-              pageSize: 10,
-              showSizeChanger: true,
-              showQuickJumper: true,
-              showTotal: (total, range) => `${range[0]}-${range[1]} of ${total} racers`,
-            }}
-            bordered
-            scroll={{ x: 1000 }}
-            size="small"
-          />
-        </Space>
-    </ConfigProvider>
-    </div>
+        <Table>
+          <Table.Thead>
+            <Table.Tr>
+              {columns.map(column=><Table.Th key={column.accessor}>{column.title}</Table.Th>)}
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {filteredData.Racers.map(racer => (
+              <Table.Tr key={racer.Bib}>
+                {columns.map(column => (
+                  <Table.Td key={column.accessor}>{racer[column.accessor]}</Table.Td>
+                ))}
+              </Table.Tr>
+            ))}
+          </Table.Tbody>
+        </Table>
+      </Container>
+    </MantineProvider>
   )
 }
 
