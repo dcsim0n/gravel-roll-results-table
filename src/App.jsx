@@ -90,9 +90,10 @@ function App() {
   const [raceResults, setRaceResults] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [secondsUntilRefresh, setSecondsUntilRefresh] = useState(120)
 
   // TODO: Replace this URL with your actual API endpoint
-  const API_URL = " https://www.webscorer.com/json/race?raceid=402519&apiid=255884"
+  const API_URL = " https://www.webscorer.com/json/race?raceid=412055&apiid=255884"
 
   // Fetch data from API
   useEffect(() => {
@@ -116,7 +117,26 @@ function App() {
       }
     }
 
+    // Fetch immediately on mount
     fetchData()
+
+    // Set up interval to fetch every 2 minutes (120,000 milliseconds)
+    const intervalId = setInterval(() => {
+      fetchData()
+      setSecondsUntilRefresh(120)
+    }, 120000)
+
+    // Cleanup interval on unmount
+    return () => clearInterval(intervalId)
+  }, [])
+
+  // Countdown timer
+  useEffect(() => {
+    const countdownId = setInterval(() => {
+      setSecondsUntilRefresh(prev => prev > 0 ? prev - 1 : 0)
+    }, 1000)
+
+    return () => clearInterval(countdownId)
   }, [])
 
   // Get all racers from results
@@ -218,6 +238,13 @@ function App() {
     )
   }
 
+  // Format countdown as MM:SS
+  const formatCountdown = (seconds) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = seconds % 60
+    return `${mins}:${secs.toString().padStart(2, '0')}`
+  }
+
   return (
     <MantineProvider >
       <Container size="xl" pt="md">
@@ -226,8 +253,11 @@ function App() {
         <Text size="md" c="dimmed">
           {raceResults.RaceInfo.Date} • {raceResults.RaceInfo.City}, {raceResults.RaceInfo.StateOrProvince}
         </Text>
-        <Text size="sm" c="dimmed" mb="lg">
+        <Text size="sm" c="dimmed">
           {raceResults.RaceInfo.Sport} • {raceResults.RaceInfo.CompletionState}
+        </Text>
+        <Text size="sm" c="blue" fw={500} mb="lg">
+          Next update in: {formatCountdown(secondsUntilRefresh)}
         </Text>
         
         <Box mb="md">
