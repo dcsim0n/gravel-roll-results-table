@@ -1,72 +1,71 @@
-import React, { useState, useMemo } from 'react'
-import { MantineProvider, Table, Title, Group, Badge, Select, Text, Container, Box, Space } from '@mantine/core'
+import React, { useState, useMemo, useEffect } from 'react'
+import { MantineProvider, Table, Title, Group, Badge, Select, Text, Container, Box, Space, Loader, Alert } from '@mantine/core'
 import '@mantine/core/styles.css'
 import './App.css'
-import raceResults from '../race-results.json'
 
 
 // Mantine Select doesn't use Option components
 
-// Race results table columns
-const columns = [
-  {
-    accessor: 'Place',
-    title: 'Place',
-    width: 80,
-    sortable: true,
-    // Mantine will handle sorting automatically
-  },
-  {
-    accessor: 'Name',
-    title: 'Name',
-    width: 200,
-  },
-  {
-    accessor: 'Distance',
-    title: 'Distance',
-    width: 120,
-    render: (distance) => (
-      <Badge color="green" variant="filled">
-        {distance}
-      </Badge>
-    ),
-  },
-  {
-    accessor: 'Category',
-    title: 'Category',
-    width: 120,
-    render: (category) => (
-      <Badge color={category.includes('Female') ? 'pink' : 'blue'} variant="filled">
-        {category}
-      </Badge>
-    ),
-  },
-  {
-    accessor: 'Time',
-    title: 'Time',
-    width: 100,
-  },
-  {
-    accessor: 'Difference',
-    title: 'Difference',
-    width: 100,
-    render: (diff) => (
-      <Text c={diff === '-' ? 'green' : 'red'}>
-        {diff}
-      </Text>
-    ),
-  },
-  {
-    accessor: 'PercentBack',
-    title: '% Back',
-    width: 80,
-  }, 
-  ...getUniqueLapNames(raceResults)
-]
+// Helper function to get base columns (without lap times)
+function getBaseColumns() {
+  return [
+    {
+      accessor: 'Place',
+      title: 'Place',
+      width: 80,
+      sortable: true,
+    },
+    {
+      accessor: 'Name',
+      title: 'Name',
+      width: 200,
+    },
+    {
+      accessor: 'Distance',
+      title: 'Distance',
+      width: 120,
+      render: (distance) => (
+        <Badge color="green" variant="filled">
+          {distance}
+        </Badge>
+      ),
+    },
+    {
+      accessor: 'Category',
+      title: 'Category',
+      width: 120,
+      render: (category) => (
+        <Badge color={category.includes('Female') ? 'pink' : 'blue'} variant="filled">
+          {category}
+        </Badge>
+      ),
+    },
+    {
+      accessor: 'Time',
+      title: 'Time',
+      width: 100,
+    },
+    {
+      accessor: 'Difference',
+      title: 'Difference',
+      width: 100,
+      render: (diff) => (
+        <Text c={diff === '-' ? 'green' : 'red'}>
+          {diff}
+        </Text>
+      ),
+    },
+    {
+      accessor: 'PercentBack',
+      title: '% Back',
+      width: 80,
+    }
+  ];
+}
 
 function getUniqueLapNames(apiResponse) {
-  const lapSet = new Set(); // LapNumber -> LapName
-  
+  const lapSet = new Set();
+
   apiResponse.Results.forEach(result => {
     result.Racers.forEach(racer => {
       racer.LapTimes?.forEach(lap => {
@@ -75,7 +74,7 @@ function getUniqueLapNames(apiResponse) {
         });
     });
   });
-  
+
   // Sort by lap number and return just the names
   return Array.from(lapSet.entries())
     .sort()
@@ -85,41 +84,76 @@ function getUniqueLapNames(apiResponse) {
       width: 100,
     }));
 }
-// Transform race results data for the table - combine all result groups
-const allRacers = raceResults.Results
-// const allRacers = raceResults.Results.flatMap(resultGroup => 
-//   resultGroup.Racers.map((racer, index) => ({
-//     key: `${resultGroup.Grouping.Distance}-${index}`,
-//     place: racer.Place,
-//     bib: racer.Bib,
-//     name: racer.Name,
-//     teamName: racer.TeamName,
-//     distance: racer.Distance,
-//     category: racer.Category,
-//     time: racer.Time,
-//     difference: racer.Difference,
-//     percentBack: racer.PercentBack,
-//   }))
-// )
 
 function App() {
+  // State for API data
+  const [raceResults, setRaceResults] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
+
+  // TODO: Replace this URL with your actual API endpoint
+  const API_URL = " https://www.webscorer.com/json/race?raceid=402519&apiid=255884"
+
+  // Fetch data from API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        const response = await fetch(API_URL)
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`)
+        }
+
+        const data = await response.json()
+        setRaceResults(data)
+        setError(null)
+      } catch (err) {
+        setError(err.message)
+        console.error('Error fetching race results:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchData()
+  }, [])
+
+  // Get all racers from results
+  const allRacers = useMemo(() => {
+    return raceResults?.Results || []
+  }, [raceResults])
+
+  // Get columns including lap times
+  const columns = useMemo(() => {
+    if (!raceResults) return getBaseColumns()
+    return [...getBaseColumns(), ...getUniqueLapNames(raceResults)]
+  }, [raceResults])
 
   // Get unique categories for the dropdown
   const categories = useMemo(() => {
     const uniqueCategories = [...new Set(allRacers.map(resultItem => resultItem.Grouping.Category))]
     return ['Overall', ...uniqueCategories.filter(Boolean).sort()]
-  }, [])
+  }, [allRacers])
 
   // Get unique distances for the dropdown
   const distances = useMemo(() => {
     const uniqueDistances = [...new Set(allRacers.map(resultItem => resultItem.Grouping.Distance))]
     return [...uniqueDistances.sort()]
-  }, [])
+  }, [allRacers])
 
   const [selectedCategory, setSelectedCategory] = useState('Overall')
   const [selectedDistance, setSelectedDistance] = useState(distances[0])
 
+  // Update selected distance when distances change
+  useEffect(() => {
+    if (distances.length > 0 && !selectedDistance) {
+      setSelectedDistance(distances[0])
+    }
+  }, [distances, selectedDistance])
+
   // Filter data based on selected category and distance
+  console.log(allRacers)
   const filteredData = useMemo(() => {
     let filtered = allRacers
     // Filter by category
@@ -134,8 +168,9 @@ function App() {
     }
 
     return filtered
-  }, [selectedCategory, selectedDistance])
+  }, [selectedCategory, selectedDistance, allRacers])
 
+  console.log(filteredData)
   const handleCategoryChange = (value) => {
     setSelectedCategory(value)
   }
@@ -143,9 +178,46 @@ function App() {
   const handleDistanceChange = (value) => {
     setSelectedDistance(value)
   }
-  console.log(distances)
-  console.log(categories)
-  console.log(filteredData)
+
+  // Loading state
+  if (loading) {
+    return (
+      <MantineProvider>
+        <Container size="xl" pt="md">
+          <Box style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
+            <Loader size="xl" />
+          </Box>
+        </Container>
+      </MantineProvider>
+    )
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <MantineProvider>
+        <Container size="xl" pt="md">
+          <Alert color="red" title="Error loading race results">
+            {error}
+          </Alert>
+        </Container>
+      </MantineProvider>
+    )
+  }
+
+  // No data state
+  if (!raceResults) {
+    return (
+      <MantineProvider>
+        <Container size="xl" pt="md">
+          <Alert color="yellow" title="No data">
+            No race results available.
+          </Alert>
+        </Container>
+      </MantineProvider>
+    )
+  }
+
   return (
     <MantineProvider >
       <Container size="xl" pt="md">
@@ -190,7 +262,7 @@ function App() {
             </Table.Tr>
           </Table.Thead>
           <Table.Tbody>
-            {filteredData.Racers.map(racer => (
+            {(filteredData?.Racers || []).map(racer => (
               <Table.Tr key={racer.Bib}>
                 {columns.map(column => (
                   <Table.Td key={column.accessor}>{racer[column.accessor]}</Table.Td>
