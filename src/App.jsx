@@ -150,6 +150,12 @@ function App() {
     return [...getBaseColumns(), ...getUniqueLapNames(raceResults)]
   }, [raceResults])
 
+  // Get unique genders for the dropdown
+  const genders = useMemo(() => {
+    const uniqueGenders = [...new Set(allRacers.map(resultItem => resultItem.Grouping.Gender))]
+    return ['All', ...uniqueGenders.filter(Boolean).sort()]
+  }, [allRacers])
+
   // Get unique categories for the dropdown
   const categories = useMemo(() => {
     const uniqueCategories = [...new Set(allRacers.map(resultItem => resultItem.Grouping.Category))]
@@ -162,6 +168,7 @@ function App() {
     return [...uniqueDistances.sort()]
   }, [allRacers])
 
+  const [selectedGender, setSelectedGender] = useState('All')
   const [selectedCategory, setSelectedCategory] = useState('Overall')
   const [selectedDistance, setSelectedDistance] = useState(distances[0])
 
@@ -172,11 +179,16 @@ function App() {
     }
   }, [distances, selectedDistance])
 
-  // Filter data based on selected category and distance
-  console.log(allRacers)
+  // Filter data based on selected category, distance, and gender
   const filteredData = useMemo(() => {
     let filtered = allRacers
-    // Filter by category
+
+    // Filter by gender first
+    if (selectedGender !== 'All') {
+      filtered = filtered.filter(resultItem => resultItem.Grouping.Gender === selectedGender)
+    }
+
+    // Then filter by category and distance
     if (selectedCategory !== "Overall"){
       filtered = filtered.filter(resultItem => (resultItem.Grouping.Category === selectedCategory) && (resultItem.Grouping.Distance === selectedDistance))
     } else {
@@ -188,9 +200,12 @@ function App() {
     }
 
     return filtered
-  }, [selectedCategory, selectedDistance, allRacers])
+  }, [selectedCategory, selectedDistance, selectedGender, allRacers])
 
-  console.log(filteredData)
+  const handleGenderChange = (value) => {
+    setSelectedGender(value)
+  }
+
   const handleCategoryChange = (value) => {
     setSelectedCategory(value)
   }
@@ -262,6 +277,16 @@ function App() {
         
         <Box mb="md">
           <Group>
+            <Group>
+              <Text fw={500}>Filter by Gender:</Text>
+              <Select
+                value={selectedGender}
+                onChange={handleGenderChange}
+                data={genders.map(gender => ({ value: gender, label: gender }))}
+                w={150}
+                placeholder="Select gender"
+              />
+            </Group>
             <Group>
               <Text fw={500}>Filter by Distance:</Text>
               <Select
