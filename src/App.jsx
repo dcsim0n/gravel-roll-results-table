@@ -85,6 +85,14 @@ function getUniqueLapNames(apiResponse) {
     }));
 }
 
+const WEBSCORER_API_ID = "255884"
+const WEBSCORER_BASE_URL = "https://www.webscorer.com/json/race"
+
+function getRaceId() {
+  const params = new URLSearchParams(window.location.search)
+  return params.get('raceid')
+}
+
 function App() {
   // State for API data
   const [raceResults, setRaceResults] = useState(null)
@@ -92,11 +100,19 @@ function App() {
   const [error, setError] = useState(null)
   const [secondsUntilRefresh, setSecondsUntilRefresh] = useState(120)
 
-  // TODO: Replace this URL with your actual API endpoint
-  const API_URL = " https://www.webscorer.com/json/race?raceid=412055&apiid=255884"
+  const raceId = getRaceId()
+  const API_URL = raceId
+    ? `${WEBSCORER_BASE_URL}?raceid=${raceId}&apiid=${WEBSCORER_API_ID}`
+    : null
 
   // Fetch data from API
   useEffect(() => {
+    if (!API_URL) {
+      setLoading(false)
+      setError('No race ID provided. Add ?raceid=<id> to the URL.')
+      return
+    }
+
     const fetchData = async () => {
       try {
         setLoading(true)
@@ -128,7 +144,7 @@ function App() {
 
     // Cleanup interval on unmount
     return () => clearInterval(intervalId)
-  }, [])
+  }, [API_URL])
 
   // Countdown timer
   useEffect(() => {
