@@ -76,9 +76,9 @@ function getUniqueLapNames(apiResponse) {
   });
 
   // Sort by lap number and return just the names
-  return Array.from(lapSet.entries())
+  return Array.from(lapSet)
     .sort()
-    .map(([_, name]) => ({
+    .map(name => ({
       accessor: name,
       title: name,
       width: 100,
@@ -87,6 +87,13 @@ function getUniqueLapNames(apiResponse) {
 
 const WEBSCORER_API_ID = "255884"
 const WEBSCORER_BASE_URL = "https://www.webscorer.com/json/race"
+const WEBSCORER_STARTLIST_URL = "https://www.webscorer.com/json/startlist"
+
+const formatCountdown = (seconds) => {
+  const mins = Math.floor(seconds / 60)
+  const secs = seconds % 60
+  return `${mins}:${secs.toString().padStart(2, '0')}`
+}
 
 function getRaceId() {
   const params = new URLSearchParams(window.location.search)
@@ -96,6 +103,8 @@ function getRaceId() {
 function App() {
   // State for API data
   const [raceResults, setRaceResults] = useState(null)
+  const [raceInfo, setRaceInfo] = useState(null)
+  const [preRace, setPreRace] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [secondsUntilRefresh, setSecondsUntilRefresh] = useState(120)
@@ -123,8 +132,27 @@ function App() {
         }
 
         const data = await response.json()
-        setRaceResults(data)
-        setError(null)
+
+        if (data.Error) {
+          // Results not available yet — fetch startlist for event title/date
+          const startlistResponse = await fetch(`${WEBSCORER_STARTLIST_URL}?raceid=${raceId}&apiid=${WEBSCORER_API_ID}`)
+          if (startlistResponse.ok) {
+            const startlistData = await startlistResponse.json()
+            if (!startlistData.Error) {
+              setRaceInfo(startlistData.RaceInfo)
+              setPreRace(true)
+              setRaceResults(null)
+              setError(null)
+              return
+            }
+          }
+          setError(data.Error)
+        } else {
+          setRaceResults(data)
+          setRaceInfo(data.RaceInfo)
+          setPreRace(false)
+          setError(null)
+        }
       } catch (err) {
         setError(err.message)
         console.error('Error fetching race results:', err)
@@ -144,7 +172,7 @@ function App() {
 
     // Cleanup interval on unmount
     return () => clearInterval(intervalId)
-  }, [API_URL])
+  }, [API_URL, raceId])
 
   // Countdown timer
   useEffect(() => {
@@ -256,24 +284,28 @@ function App() {
     )
   }
 
-  // No data state
-  if (!raceResults) {
+  // Pre-race state — show event info while polling for results
+  if (preRace && raceInfo) {
     return (
       <MantineProvider>
         <Container size="xl" pt="md">
-          <Alert color="yellow" title="No data">
-            No race results available.
+          <Space h="md" />
+          <Title order={2}>{raceInfo.Name}</Title>
+          <Text size="md" c="dimmed">
+            {raceInfo.Date} • {raceInfo.City}, {raceInfo.StateOrProvince}
+          </Text>
+          <Text size="sm" c="dimmed" mb="lg">
+            {raceInfo.Sport}
+          </Text>
+          <Alert color="blue" title="Results not yet available">
+            Results will be posted once the race begins{raceInfo.StartTime ? ` at ${raceInfo.StartTime}` : ''}. This page checks automatically every 2 minutes.
           </Alert>
+          <Text size="sm" c="blue" fw={500} mt="md">
+            Next update in: {formatCountdown(secondsUntilRefresh)}
+          </Text>
         </Container>
       </MantineProvider>
     )
-  }
-
-  // Format countdown as MM:SS
-  const formatCountdown = (seconds) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
   }
 
   return (
